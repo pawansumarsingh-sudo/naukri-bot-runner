@@ -1,0 +1,40 @@
+
+name: Naukri Bot - Deployment Test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout private BOT repository
+        uses: actions/checkout@v4
+        with:
+          repository: pawansumarsingh-sudo/BOT
+          ref: FULL-CODE
+          token: ${{ secrets.BOT_ACCESS_TOKEN }}
+          path: bot
+
+      - name: Verify application files
+        shell: pwsh
+        run: |
+          Write-Host "Python automation repository downloaded."
+
+          $required = @(
+            "naukri_bot.py",
+            "requirements.txt",
+            "config.ini"
+          )
+
+          foreach ($file in $required) {
+            if (Test-Path "bot/$file") {
+              Write-Host "Found: $file"
+            } else {
+              throw "Missing required file: $file"
+            }
+          }
