@@ -7,6 +7,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: naukri-bot
+  cancel-in-progress: false
+
 jobs:
   verify:
     runs-on: windows-latest
@@ -20,6 +24,31 @@ jobs:
           token: ${{ secrets.BOT_ACCESS_TOKEN }}
           path: bot
 
+      - name: Restore bot state
+        uses: actions/cache@v4
+        with:
+          path: |
+            bot/data/state.json
+            bot/data/applied_job_ids.json
+          key: naukri-state-${{ github.run_id }}
+          restore-keys: |
+            naukri-state-
+
+      - name: Ensure state files exist
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "bot/data" | Out-Null
+
+          if (-not (Test-Path "bot/data/state.json")) {
+            Set-Content "bot/data/state.json" "{}"
+          }
+
+          if (-not (Test-Path "bot/data/applied_job_ids.json")) {
+            Set-Content "bot/data/applied_job_ids.json" "[]"
+          }
+
+          Write-Host "Bot state files are ready."
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -31,32 +60,45 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r bot/requirements.txt
 
+      - name: Verify application files
+        shell: pwsh
+        run: |
+          $required = @(
+            "naukri_bot.py",
+            "requirements.txt",
+            "config.ini"
+          )
+
+          foreach ($file in $required) {
+            if (-not (Test-Path "bot/$file")) {
+              throw "Missing required file: $file"
+            }
+            Write-Host "Found: $file"
+          }
+
+          python --version
+          python -m pip show selenium
+          python -m pip show anthropic
+
       - name: Verify Chrome installation
         shell: pwsh
         run: |
-          $chrome = Get-Command chrome -ErrorAction SilentlyContinue
+          $paths = @(
+            "${env:ProgramFiles}\Google\Chrome\Application\chrome.exe",
+            "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe"
+          )
 
-          if ($chrome) {
-            Write-Host "Chrome found: $($chrome.Source)"
-          } else {
-            $paths = @(
-              "${env:ProgramFiles}\Google\Chrome\Application\chrome.exe",
-              "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe"
-            )
-
-            $found = $false
-
-            foreach ($path in $paths) {
-              if (Test-Path $path) {
-                Write-Host "Chrome found: $path"
-                $found = $true
-                break
-              }
+          $found = $false
+          foreach ($path in $paths) {
+            if (Test-Path $path) {
+              Write-Host "Chrome found: $path"
+              $found = $true
+              break
             }
+          }
 
-            if (-not $found) {
-              throw "Chrome is not installed."
-            }
+          if (-not $found) {
+            throw "Chrome is not installed."
           }
 
       - name: Test Selenium with Chrome
@@ -82,26 +124,3 @@ jobs:
           '@ | Set-Content selenium_test.py
 
           python selenium_test.py
-
-      - name: Verify application files
-        shell: pwsh
-        run: |
-          Write-Host "Python automation repository downloaded."
-
-          $required = @(
-            "naukri_bot.py",
-            "requirements.txt",
-            "config.ini"
-          )
-
-          foreach ($file in $required) {
-            if (Test-Path "bot/$file") {
-              Write-Host "Found: $file"
-            } else {
-              throw "Missing required file: $file"
-            }
-          }
-
-          python --version
-          python -m pip show selenium
-          python -m pip show anthropic
