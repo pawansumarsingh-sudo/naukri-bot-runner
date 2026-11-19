@@ -124,3 +124,9 @@ jobs:
           '@ | Set-Content selenium_test.py
 
           python selenium_test.py
+
+      - name: Run Naukri bot in dry-run mode
+        shell: pwsh
+        working-directory: bot
+        run: |
+          python naukri_bot.py --dry-run
