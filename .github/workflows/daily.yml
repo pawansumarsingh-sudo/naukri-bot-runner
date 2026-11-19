@@ -31,6 +31,34 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r bot/requirements.txt
 
+      - name: Verify Chrome installation
+        shell: pwsh
+        run: |
+          $chrome = Get-Command chrome -ErrorAction SilentlyContinue
+
+          if ($chrome) {
+            Write-Host "Chrome found: $($chrome.Source)"
+          } else {
+            $paths = @(
+              "${env:ProgramFiles}\Google\Chrome\Application\chrome.exe",
+              "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe"
+            )
+
+            $found = $false
+
+            foreach ($path in $paths) {
+              if (Test-Path $path) {
+                Write-Host "Chrome found: $path"
+                $found = $true
+                break
+              }
+            }
+
+            if (-not $found) {
+              throw "Chrome is not installed."
+            }
+          }
+
       - name: Verify application files
         shell: pwsh
         run: |
