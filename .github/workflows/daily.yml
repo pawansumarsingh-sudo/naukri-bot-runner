@@ -59,6 +59,30 @@ jobs:
             }
           }
 
+      - name: Test Selenium with Chrome
+        shell: pwsh
+        run: |
+          @'
+          from selenium import webdriver
+          from selenium.webdriver.chrome.options import Options
+
+          options = Options()
+          options.add_argument("--headless=new")
+          options.add_argument("--no-sandbox")
+          options.add_argument("--disable-dev-shm-usage")
+
+          driver = webdriver.Chrome(options=options)
+
+          try:
+              driver.get("https://www.google.com")
+              print("Page title:", driver.title)
+              print("Selenium Chrome test passed.")
+          finally:
+              driver.quit()
+          '@ | Set-Content selenium_test.py
+
+          python selenium_test.py
+
       - name: Verify application files
         shell: pwsh
         run: |
