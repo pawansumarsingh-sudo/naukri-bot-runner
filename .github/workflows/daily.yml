@@ -128,5 +128,16 @@ jobs:
       - name: Run Naukri bot in dry-run mode
         shell: pwsh
         working-directory: bot
+        timeout-minutes: 10
         run: |
           python naukri_bot.py --dry-run
+          $botExitCode = $LASTEXITCODE
+
+          Get-Process chrome, chromedriver -ErrorAction SilentlyContinue |
+            Stop-Process -Force
+
+          if ($botExitCode -ne 0) {
+            throw "Naukri bot failed with exit code $botExitCode"
+          }
+
+          Write-Host "Dry run completed successfully."
